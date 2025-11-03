@@ -6,53 +6,50 @@ import {
   ReactNode
 } from "react";
 
-// Interface pour le contexte des étapes d'agent
+// ============================================================================
+// INTERFACE du contexte
+// ============================================================================
 interface AgentStepsContextType {
   agentSteps: string[];
   isDisplayingSteps: boolean;
   addStep: (step: string) => void;
   resetSteps: () => void;
   updateSteps: (steps: string[]) => void;
-  setAgentSteps: React.Dispatch<React.SetStateAction<string[]>>;
-  displayStepsProgressively: (steps: string[]) => Promise<void>;
 }
 
 const AgentStepsContext = createContext<AgentStepsContextType | undefined>(
   undefined
 );
 
-// Provider pour encapsuler l'application
+// ============================================================================
+// PROVIDER - Encapsule l'application
+// ============================================================================
 export const AgentStepsProvider = ({ children }: { children: ReactNode }) => {
   const [agentSteps, setAgentSteps] = useState<string[]>([]);
   const [isDisplayingSteps, setIsDisplayingSteps] = useState(false);
 
+  /**
+   * Ajoute un step à la fin de la liste (pour streaming progressif)
+   */
   const addStep = useCallback((step: string) => {
     setAgentSteps(prev => [...prev, step]);
+    setIsDisplayingSteps(true);
   }, []);
 
+  /**
+   * Reset tous les steps (avant une nouvelle query)
+   */
   const resetSteps = useCallback(() => {
     setAgentSteps([]);
     setIsDisplayingSteps(false);
   }, []);
 
+  /**
+   * Remplace tous les steps d'un coup (quand on reçoit un array complet)
+   */
   const updateSteps = useCallback((steps: string[]) => {
     setAgentSteps(steps);
-  }, []);
-
-  // Fonction pour afficher les étapes de manière progressive
-  const displayStepsProgressively = useCallback(async (steps: string[]) => {
-    if (!steps || steps.length === 0) return;
-
-    setIsDisplayingSteps(true);
-    setAgentSteps([]);
-
-    // Afficher les vraies étapes de l'agent progressivement
-    for (const step of steps) {
-      setAgentSteps(prev => [...prev, step]);
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    setIsDisplayingSteps(false);
+    setIsDisplayingSteps(steps.length > 0);
   }, []);
 
   return (
@@ -62,9 +59,7 @@ export const AgentStepsProvider = ({ children }: { children: ReactNode }) => {
         isDisplayingSteps,
         addStep,
         resetSteps,
-        updateSteps,
-        setAgentSteps,
-        displayStepsProgressively
+        updateSteps
       }}
     >
       {children}
@@ -72,10 +67,14 @@ export const AgentStepsProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+// ============================================================================
+// HOOK - Utilise le contexte
+// ============================================================================
 export const useAgentSteps = () => {
   const context = useContext(AgentStepsContext);
+  
   if (context === undefined) {
-    // Version de fallback si le contexte n'est pas disponible
+    // Fallback si utilisé en dehors du Provider
     console.warn(
       "useAgentSteps used outside AgentStepsProvider, returning fallback"
     );
@@ -84,10 +83,9 @@ export const useAgentSteps = () => {
       isDisplayingSteps: false,
       addStep: () => {},
       resetSteps: () => {},
-      updateSteps: () => {},
-      setAgentSteps: () => {},
-      displayStepsProgressively: async () => {}
+      updateSteps: () => {}
     };
   }
+  
   return context;
 };
