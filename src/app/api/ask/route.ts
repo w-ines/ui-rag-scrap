@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
+import { Agent, setGlobalDispatcher } from "undici";
+
+// Configure undici with extended timeouts for long-running agent operations
+const agent = new Agent({
+  headersTimeout: 10 * 60 * 1000, // 10 minutes
+  bodyTimeout: 10 * 60 * 1000,    // 10 minutes
+  connectTimeout: 30 * 1000,      // 30 seconds
+});
+setGlobalDispatcher(agent);
 
 export async function POST(req: NextRequest) {
   try {
