@@ -21,7 +21,7 @@ export default function SearchForm({ onResult, onLoadingChange }: Props) {
   const [mounted, setMounted] = useState(false);
   
   // Hook pour gérer les steps de l'agent (affichage en temps réel)
-  const { resetSteps, addStep, updateSteps } = useAgentSteps();
+  const { resetSteps, addStep, updateSteps, finishDisplaying } = useAgentSteps();
   
   // S'assure que le composant est monté côté client (évite les erreurs SSR)
   useEffect(() => setMounted(true), []);
@@ -184,10 +184,22 @@ export default function SearchForm({ onResult, onLoadingChange }: Props) {
 
         // Parse chaque ligne complète
         for (const line of lines) {
-          if (!line.trim()) continue; // Skip les lignes vides
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue; // Skip les lignes vides
 
           try {
-            const data = JSON.parse(line);
+            // Handle SSE format: "data: {...}" - strip prefix if present (v2)
+            let jsonStr = trimmedLine;
+            console.log("[SearchForm] Raw line:", trimmedLine.substring(0, 50));
+            if (trimmedLine.startsWith('data:')) {
+              jsonStr = trimmedLine.slice(5).trim();
+              console.log("[SearchForm] Stripped to:", jsonStr.substring(0, 50));
+            }
+            
+            // Skip if not valid JSON (e.g., just "data:" without content, or empty)
+            if (!jsonStr || jsonStr === "") continue;
+            
+            const data = JSON.parse(jsonStr);
             console.log("[SearchForm] Received chunk:", data);
 
             // TRAITEMENT DES DIFFÉRENTS TYPES DE MESSAGES
@@ -198,25 +210,43 @@ export default function SearchForm({ onResult, onLoadingChange }: Props) {
               addStep(data.step);
             }
 
-            // 2. Erreur
+            // 2. Erreur - handle gracefully without throwing
             if (data.error) {
-              console.error("[SearchForm] Stream error:", data.error);
-              throw new Error(data.error);
+              const errorMessage = typeof data.error === 'string' 
+                ? data.error 
+                : (typeof data.error === 'boolean' 
+                    ? 'An unknown error occurred' 
+                    : JSON.stringify(data.error));
+              console.error("[SearchForm] Stream error:", errorMessage);
+              console.error("[SearchForm] Full error data:", data);
+              // Set error as the final answer instead of throwing
+              finishDisplaying();
+              finalAnswer = `❌ Error: ${errorMessage}`;
+              // Don't throw - continue to display the error gracefully
+              break; // Exit the parsing loop
             }
 
-            // 3. Steps de l'agent (array complet)
+            // 3. Steps de l'agent (array avec un ou plusieurs steps)
             if (data.steps && Array.isArray(data.steps)) {
-              console.log("[SearchForm] Updating steps:", data.steps);
-              updateSteps(data.steps);
+              console.log("[SearchForm] Received steps:", data.steps);
+              // Add each step individually for progressive display
+              data.steps.forEach((step: unknown) => {
+                if (step && typeof step === "string") {
+                  addStep(step);
+                }
+              });
             }
 
-            // 4. Réponse finale (peut être "answer" ou "response")
-            if (data.done) {
-              // ⚠️ CORRECTION ICI : Le backend envoie "answer", pas "response"
-              if (data.answer) {
-                finalAnswer = data.answer;
-                console.log("[SearchForm] Final answer received:", finalAnswer.substring(0, 100));
-              }
+            // 4. Réponse finale
+            if (data.response && !data.error) {
+              finalAnswer = data.response;
+              console.log("[SearchForm] Final response received:", finalAnswer.substring(0, 100));
+            }
+            
+            // Legacy support for "answer" field
+            if (data.answer) {
+              finalAnswer = data.answer;
+              console.log("[SearchForm] Final answer received:", finalAnswer.substring(0, 100));
             }
 
           } catch (parseError) {
@@ -228,6 +258,7 @@ export default function SearchForm({ onResult, onLoadingChange }: Props) {
 
       // Affiche la réponse finale
       if (finalAnswer) {
+        finishDisplaying(); // Stop showing "Agent is thinking..."
         onResult(finalAnswer);
       } else {
         console.warn("[SearchForm] No final answer received from stream");
@@ -235,7 +266,11 @@ export default function SearchForm({ onResult, onLoadingChange }: Props) {
 
     } catch (err) {
       console.error("[SearchForm] Stream reading error:", err);
-      throw err;
+      // Don't re-throw - set error as final answer
+      finishDisplaying();
+      const errorMsg = (err as Error).message || "Stream reading failed";
+      onResult(`❌ Error: ${errorMsg}`);
+      return; // Exit gracefully
     }
   }
 

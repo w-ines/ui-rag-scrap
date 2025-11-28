@@ -125,22 +125,36 @@ export default function AgentStepsDisplay() {
 
   return (
     <div className="mt-4 space-y-2">
-      <h3 className="text-sm font-semibold text-foreground/80">
-        🤖 Agent Reasoning Steps
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground/80">
+          🤖 Agent Reasoning Steps
+        </h3>
+        {agentSteps.length > 0 && (
+          <span className="text-xs text-foreground/60">
+            {agentSteps.length} step{agentSteps.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
       <div className="space-y-2">
         {agentSteps.map((step, index) => (
           <div
             key={index}
-            className="animate-fadeIn rounded-lg border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/20 p-3 text-sm"
+            className="animate-fadeIn rounded-lg border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/20 p-3 text-sm transition-all hover:border-blue-500/40"
           >
-            <MarkdownRenderer content={step} />
+            <div className="flex items-start gap-2">
+              <span className="text-xs font-medium text-blue-600 dark:text-blue-400 mt-0.5">
+                #{index + 1}
+              </span>
+              <div className="flex-1">
+                <MarkdownRenderer content={step} />
+              </div>
+            </div>
           </div>
         ))}
         {isDisplayingSteps && (
-          <div className="flex items-center gap-2 text-xs text-foreground/60">
+          <div className="flex items-center gap-2 text-xs text-foreground/60 px-3 py-2">
             <span className="h-2 w-2 animate-ping rounded-full bg-blue-500"></span>
-            <span>Processing...</span>
+            <span>Agent is thinking...</span>
           </div>
         )}
       </div>

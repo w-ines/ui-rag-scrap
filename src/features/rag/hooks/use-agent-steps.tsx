@@ -15,6 +15,7 @@ interface AgentStepsContextType {
   addStep: (step: string) => void;
   resetSteps: () => void;
   updateSteps: (steps: string[]) => void;
+  finishDisplaying: () => void;
 }
 
 const AgentStepsContext = createContext<AgentStepsContextType | undefined>(
@@ -30,9 +31,19 @@ export const AgentStepsProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Ajoute un step à la fin de la liste (pour streaming progressif)
+   * Évite les doublons en comparant avec le dernier step
    */
   const addStep = useCallback((step: string) => {
-    setAgentSteps(prev => [...prev, step]);
+    if (!step || step.trim() === "") return;
+    
+    setAgentSteps(prev => {
+      // Skip if this step is identical to the last one (deduplication)
+      const lastStep = prev[prev.length - 1];
+      if (lastStep && lastStep.toLowerCase().trim() === step.toLowerCase().trim()) {
+        return prev;
+      }
+      return [...prev, step];
+    });
     setIsDisplayingSteps(true);
   }, []);
 
@@ -52,6 +63,13 @@ export const AgentStepsProvider = ({ children }: { children: ReactNode }) => {
     setIsDisplayingSteps(steps.length > 0);
   }, []);
 
+  /**
+   * Arrête l'affichage de "thinking" (quand la réponse finale arrive)
+   */
+  const finishDisplaying = useCallback(() => {
+    setIsDisplayingSteps(false);
+  }, []);
+
   return (
     <AgentStepsContext.Provider
       value={{
@@ -59,7 +77,8 @@ export const AgentStepsProvider = ({ children }: { children: ReactNode }) => {
         isDisplayingSteps,
         addStep,
         resetSteps,
-        updateSteps
+        updateSteps,
+        finishDisplaying
       }}
     >
       {children}
@@ -83,7 +102,8 @@ export const useAgentSteps = () => {
       isDisplayingSteps: false,
       addStep: () => {},
       resetSteps: () => {},
-      updateSteps: () => {}
+      updateSteps: () => {},
+      finishDisplaying: () => {}
     };
   }
   
