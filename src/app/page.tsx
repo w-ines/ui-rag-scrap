@@ -24,3 +24,6 @@ export default function Home() {
     </main>
   );
 }
+
+// Désactiver le SSR pour éviter les problèmes avec File API
+export const dynamic = 'force-dynamic';

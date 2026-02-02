@@ -1,3 +1,5 @@
+import "../../../../scripts/polyfills";
+
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { Agent, setGlobalDispatcher } from "undici";

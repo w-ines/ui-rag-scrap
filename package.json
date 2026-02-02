@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "NEXT_DISABLE_DEVTOOLS=1 next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "node -r ./scripts/polyfills.js ./node_modules/.bin/next build --turbopack",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "next": "15.5.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "next": "15.5.8",
+    "react": "19.1.4",
+    "react-dom": "19.1.4",
     "undici": "^7.16.0"
   },
   "devDependencies": {
